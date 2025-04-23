@@ -74,9 +74,12 @@ def launch_poller():
 # === Flask Route to Handle Telegram Webhook ===
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    print("🔥 Webhook triggered!")
+    print(request.json)  # <- log the incoming update
     update = Update.de_json(request.get_json(force=True), bot)
     dispatcher.process_update(update)
     return 'ok'
+
 
 @app.route('/')
 def index():
