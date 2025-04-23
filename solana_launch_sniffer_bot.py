@@ -9,7 +9,7 @@ from telegram.ext import Dispatcher, CommandHandler, CallbackContext
 # === Config ===
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 RPC_URL = os.getenv("RPC_URL")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # e.g. https://your-render-app.onrender.com
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 # === Telegram Bot Setup ===
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
@@ -46,50 +46,54 @@ def notify_users(message: str):
     for chat_id in user_chats:
         bot.send_message(chat_id=chat_id, text=message)
 
-# === Telegram Handlers ===
+# === Telegram Command Handlers ===
 def start(update: Update, context: CallbackContext):
     user_chats.add(update.message.chat_id)
-    context.bot.send_message(chat_id=update.message.chat_id, text="👋 Welcome! Use /watchlaunches to get notified about new Solana token launches.")
+    print(f"✅ /start from: {update.message.chat_id}")
+    context.bot.send_message(chat_id=update.message.chat_id, text="👋 Welcome! Use /watchlaunches to get notified.")
 
 def watchlaunches(update: Update, context: CallbackContext):
     user_chats.add(update.message.chat_id)
-    context.bot.send_message(chat_id=update.message.chat_id, text="👀 Watching for new SPL token launches on Solana...")
+    print(f"👀 /watchlaunches from: {update.message.chat_id}")
+    context.bot.send_message(chat_id=update.message.chat_id, text="👀 Watching for SPL token launches...")
 
 # === Register Handlers ===
 dispatcher.add_handler(CommandHandler("start", start))
 dispatcher.add_handler(CommandHandler("watchlaunches", watchlaunches))
 
-# === Polling Blockchain in Background ===
+# === Blockchain Polling ===
 def launch_poller():
     seen_signatures = set()
     while True:
         signatures = get_recent_token_mints()
         new_sigs = [s for s in signatures if s not in seen_signatures]
         for sig in new_sigs:
-            msg = f"🪙 New token mint transaction detected!\nhttps://solscan.io/tx/{sig}"
+            msg = f"🪙 New token mint detected:\nhttps://solscan.io/tx/{sig}"
             notify_users(msg)
             seen_signatures.add(sig)
         time.sleep(15)
 
-# === Flask Route to Handle Telegram Webhook ===
+# === Webhook Route with Full Debug ===
 @app.route('/webhook', methods=['POST'])
 def webhook():
     print("🔥 Webhook triggered!")
-    print(request.json)  # <- log the incoming update
+    print("📨 Raw JSON:", request.json)
     update = Update.de_json(request.get_json(force=True), bot)
     dispatcher.process_update(update)
     return 'ok'
 
-
-@app.route('/')
+# === Fallback Debug Route ===
+@app.route('/', methods=['GET', 'POST', 'PUT', 'PATCH'])
 def index():
+    print(f"🌐 Incoming {request.method} to /")
     return 'Solana Sniffer Bot is running!'
 
+# === Main Entrypoint ===
 def main():
     bot.delete_webhook()
     bot.set_webhook(url=WEBHOOK_URL + "/webhook")
     threading.Thread(target=launch_poller, daemon=True).start()
-    print("🤖 Bot is running with webhook...")
+    print("🤖 Bot is running with webhook + debug...")
     app.run(host='0.0.0.0', port=10000)
 
 if __name__ == '__main__':
