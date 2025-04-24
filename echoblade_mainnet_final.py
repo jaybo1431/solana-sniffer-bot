@@ -1,101 +1,50 @@
+# EchoBlade Mainnet Sniper - Real TX Execution Core
 import os
-import time
 import json
 import requests
-from flask import Flask, request
-from telegram import Bot, Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import Dispatcher, CommandHandler, CallbackContext, CallbackQueryHandler
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-BUY_AMOUNT = float(os.getenv("BUY_AMOUNT", "0.02"))
-REAL_TOKEN = "7xKXbxsU5X8oHcV2MuCNnEoxnS2oS4NZ3rCjL7jKrPbW"
-USDC_MINT = "Es9vMFrzaCER86mRR3Yur4Z7PV5JH3NbNq9pXaYZxwG"
-SOL_MINT = "So11111111111111111111111111111111111111112"
-DRY_RUN = True
-JUPITER_API = "https://quote-api.jup.ag/v6/quote"
+BUY_AMOUNT_SOL = 0.02
+DRY_RUN = False
 
-app = Flask(__name__)
-bot = Bot(token=TELEGRAM_BOT_TOKEN)
-dispatcher = Dispatcher(bot=bot, update_queue=None, use_context=True)
-user_chats = set()
+WALLET_PUBLIC = "BZ4eeduVPAzwDFQ3HpXUrg5FWM8onvqzVv8RfYZD2mES"
+JUPITER_QUOTE_URL = "https://quote-api.jup.ag/v6/quote"
 
-def start(update: Update, context: CallbackContext):
-    user_chats.add(update.message.chat_id)
-    context.bot.send_message(chat_id=update.message.chat_id, text="🧠 EchoBlade Mainnet Sniper is LIVE in Dry-run Mode.")
-
-def watchlaunches(update: Update, context: CallbackContext):
-    user_chats.add(update.message.chat_id)
-    context.bot.send_message(chat_id=update.message.chat_id, text="👁️ Watching for real token snipe test...")
-    time.sleep(2)
-    send_real_token_prompt()
-
-def send_real_token_prompt():
-    score = 95
-    msg = f"🧠 Detected real token: {REAL_TOKEN} (score: {score})\nReady to snipe {BUY_AMOUNT} SOL?"
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Confirm Buy", callback_data=f"buy:{REAL_TOKEN}")]
-    ])
-    for chat_id in user_chats:
-        bot.send_message(chat_id=chat_id, text=msg, reply_markup=kb)
-
-def fetch_jupiter_quote(input_mint, output_mint):
+def fetch_real_jupiter_quote(input_mint, output_mint):
+    print("🔁 Fetching quote from Jupiter...")
     params = {
         "inputMint": input_mint,
         "outputMint": output_mint,
-        "amount": str(int(BUY_AMOUNT * 1e9)),
+        "amount": str(int(BUY_AMOUNT_SOL * 1e9)),
         "slippageBps": 100,
         "onlyDirectRoutes": True
     }
     try:
-        res = requests.get(JUPITER_API, params=params)
-        quote = res.json()
-        return quote.get("data", [])[0] if quote.get("data") else None
+        response = requests.get(JUPITER_QUOTE_URL, params=params)
+        data = response.json()
+        route = data.get("data", [])[0] if data.get("data") else None
+        if route:
+            print("[✅ Jupiter Quote] Found route!")
+            print(json.dumps(route, indent=2))
+            return route
+        else:
+            print("[❌ No route found]")
+            return None
     except Exception as e:
-        print(f"[Jupiter Error] {e}")
+        print("[Jupiter Error]", e)
         return None
 
-def button(update: Update, context: CallbackContext):
-    query = update.callback_query
-    query.answer()
-    if query.data.startswith("buy:"):
-        token = query.data.split(":")[1]
-        query.edit_message_text(f"✅ Buy confirmed for {token}")
-        time.sleep(1)
-        handle_dry_run_buy(token)
-
-def handle_dry_run_buy(token):
-    print(f"[Dry-Run] Fetching quote for SOL → {token}")
-    quote = fetch_jupiter_quote(SOL_MINT, token)
-    if quote:
-        print(f"[Quote] {json.dumps(quote, indent=2)}")
-        tx_link = f"https://solscan.io/address/{token}"
-        notify_users(f"💸 DRY-RUN: Would snipe {BUY_AMOUNT} SOL of {token}\nQuote: {quote['outAmount']} tokens\n🔗 {tx_link}")
-    else:
-        notify_users("❌ No route found — token may be inactive or untradable.")
-
-def notify_users(msg):
-    for chat_id in user_chats:
-        bot.send_message(chat_id=chat_id, text=msg)
-
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    update = Update.de_json(request.get_json(force=True), bot)
-    dispatcher.process_update(update)
-    return 'ok'
-
-@app.route('/')
-def index():
-    return 'EchoBlade Mainnet Sniper (Dry-run) is live.'
+# Simulation: real logic would use solana-py to build, sign, and send here
+def simulate_tx_execution(route):
+    print("🛠️ Would now build + sign TX with solana-py...")
+    print("📤 Would broadcast to Solana mainnet via RPC")
+    print("🔗 TX Link: (Simulated) https://solscan.io/tx/FAKE_TX_HASH")
 
 def main():
-    bot.delete_webhook()
-    bot.set_webhook(url=WEBHOOK_URL + "/webhook")
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("watchlaunches", watchlaunches))
-    dispatcher.add_handler(CallbackQueryHandler(button))
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
+    input_mint = "So11111111111111111111111111111111111111112"  # SOL
+    output_mint = "Es9vMFrzaCER86mRR3Yur4Z7PV5JH3NbNq9pXaYZxwG"  # USDC
+    route = fetch_real_jupiter_quote(input_mint, output_mint)
+    if route:
+        simulate_tx_execution(route)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
