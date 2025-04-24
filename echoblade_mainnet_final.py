@@ -9,7 +9,9 @@ from telegram.ext import Dispatcher, CommandHandler, CallbackContext, CallbackQu
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 BUY_AMOUNT = float(os.getenv("BUY_AMOUNT", "0.02"))
-WALLET_ADDRESS = "BZ4eeduVPAzwDFQ3HpXUrg5FWM8onvqzVv8RfYZD2mES"
+REAL_TOKEN = "7xKXbxsU5X8oHcV2MuCNnEoxnS2oS4NZ3rCjL7jKrPbW"
+USDC_MINT = "Es9vMFrzaCER86mRR3Yur4Z7PV5JH3NbNq9pXaYZxwG"
+SOL_MINT = "So11111111111111111111111111111111111111112"
 DRY_RUN = True
 JUPITER_API = "https://quote-api.jup.ag/v6/quote"
 
@@ -17,7 +19,6 @@ app = Flask(__name__)
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 dispatcher = Dispatcher(bot=bot, update_queue=None, use_context=True)
 user_chats = set()
-active_trades = []
 
 def start(update: Update, context: CallbackContext):
     user_chats.add(update.message.chat_id)
@@ -25,16 +26,15 @@ def start(update: Update, context: CallbackContext):
 
 def watchlaunches(update: Update, context: CallbackContext):
     user_chats.add(update.message.chat_id)
-    context.bot.send_message(chat_id=update.message.chat_id, text="👁️ Watching for token opportunities (simulated scoring)...")
+    context.bot.send_message(chat_id=update.message.chat_id, text="👁️ Watching for real token snipe test...")
     time.sleep(2)
-    simulate_graduated_token()
+    send_real_token_prompt()
 
-def simulate_graduated_token():
-    fake_token = "So11111111111111111111111111111111111111112"
-    score = 92
-    msg = f"🧠 Detected graduated token: {fake_token} (score: {score})\nReady to snipe {BUY_AMOUNT} SOL?"
+def send_real_token_prompt():
+    score = 95
+    msg = f"🧠 Detected real token: {REAL_TOKEN} (score: {score})\nReady to snipe {BUY_AMOUNT} SOL?"
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Confirm Buy", callback_data=f"buy:{fake_token}")]
+        [InlineKeyboardButton("✅ Confirm Buy", callback_data=f"buy:{REAL_TOKEN}")]
     ])
     for chat_id in user_chats:
         bot.send_message(chat_id=chat_id, text=msg, reply_markup=kb)
@@ -61,17 +61,18 @@ def button(update: Update, context: CallbackContext):
     if query.data.startswith("buy:"):
         token = query.data.split(":")[1]
         query.edit_message_text(f"✅ Buy confirmed for {token}")
-        threading.Thread(target=handle_dry_run_buy, args=(token,), daemon=True).start()
+        time.sleep(1)
+        handle_dry_run_buy(token)
 
 def handle_dry_run_buy(token):
-    print(f"[Dry-Run] Fetching quote for token {token}")
-    quote = fetch_jupiter_quote("So11111111111111111111111111111111111111112", token)
+    print(f"[Dry-Run] Fetching quote for SOL → {token}")
+    quote = fetch_jupiter_quote(SOL_MINT, token)
     if quote:
         print(f"[Quote] {json.dumps(quote, indent=2)}")
         tx_link = f"https://solscan.io/address/{token}"
         notify_users(f"💸 DRY-RUN: Would snipe {BUY_AMOUNT} SOL of {token}\nQuote: {quote['outAmount']} tokens\n🔗 {tx_link}")
     else:
-        notify_users("❌ Failed to fetch quote or no route available.")
+        notify_users("❌ No route found — token may be inactive or untradable.")
 
 def notify_users(msg):
     for chat_id in user_chats:
@@ -97,5 +98,4 @@ def main():
     app.run(host='0.0.0.0', port=port)
 
 if __name__ == '__main__':
-    import threading
     main()
