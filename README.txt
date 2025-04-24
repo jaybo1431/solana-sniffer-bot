@@ -1,1 +1,1 @@
-EchoBlade MAX: Full Intelligence Edition - Includes /status, PnL tracking, trailing sells, memory mode, and score analysis.
+EchoBlade MAINNET READY PATCH - Includes real wallet logic, dry-run mode, buy confirmations, trailing sells, stop-loss.
