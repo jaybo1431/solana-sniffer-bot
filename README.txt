@@ -1,1 +1,1 @@
-This version includes auto-airdrop on Devnet using the sniper wallet.
+EchoBlade MAX: Full Intelligence Edition - Includes /status, PnL tracking, trailing sells, memory mode, and score analysis.
